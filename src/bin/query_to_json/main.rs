@@ -7,8 +7,8 @@ use sqlx::{
 };
 use std::{collections::HashMap, str::FromStr};
 
-async fn init_db() -> SqlitePool {
-    SqlitePoolOptions::new()
+async fn init_db() -> anyhow::Result<SqlitePool> {
+    Ok(SqlitePoolOptions::new()
         .min_connections(1)
         .max_connections(1)
         .max_lifetime(None)
@@ -23,11 +23,11 @@ async fn init_db() -> SqlitePool {
             SqliteConnectOptions::from_str("sqlite::memory:")
                 .unwrap()
                 .create_if_missing(true),)
-        .await.expect("Unable to connect to SQLite")
+        .await.expect("Unable to connect to SQLite"))
 }
 
 fn main() -> anyhow::Result<()> {
-    let db = block_on(init_db());
+    let db = block_on(init_db()).unwrap();
     #[allow(clippy::into_iter_on_ref)] // We *want* to release early, so we're going .into_
     let result: Vec<_> = block_on(sqlx::query(r#"select * from dataset"#).fetch_all(&db))?
         .into_iter()

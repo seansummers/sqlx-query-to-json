@@ -1,5 +1,5 @@
 [package]
-name = "play-sqlx-query-to-json"
+name = "play-sqlx"
 version = "1.0.0"
 edition = "2021"
 
