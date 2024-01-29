@@ -2,26 +2,28 @@
 use futures::executor::block_on;
 use serde_json::json;
 use sqlx::{
-    sqlite::{SqliteConnectOptions, SqlitePool},
-    Column, Row, TypeInfo,
+    sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions},
+    Column, Executor, Row, TypeInfo,
 };
 use std::{collections::HashMap, str::FromStr};
 
 async fn init_db() -> SqlitePool {
-    let db_options = SqliteConnectOptions::from_str("sqlite:testing.sqlite")
-        .unwrap()
-        .create_if_missing(true);
-    let pool = SqlitePool::connect_with(db_options).await.unwrap();
-    let mut db = pool.acquire().await.unwrap();
-    let _ = sqlx::query(
-        "create table dataset (id int primary key, unit int, active bool, name text, value float);
-         insert into dataset values (1,42,False,'A unit',12.34);
-         commit;",
-    )
-    .execute(&mut *db)
-    .await;
-    db.close().await.ok();
-    pool
+    SqlitePoolOptions::new()
+        .min_connections(1)
+        .max_connections(1)
+        .max_lifetime(None)
+        .after_connect(|conn, _meta| Box::pin(async move {
+            conn.execute(
+                "create table dataset (id int primary key, unit int, active bool, name text, value float);
+                insert into dataset values (1,42,False,'A unit',12.34);
+                commit;").await.ok();
+            Ok(())
+        }))
+        .connect_with(
+            SqliteConnectOptions::from_str("sqlite::memory:")
+                .unwrap()
+                .create_if_missing(true),)
+        .await.expect("Unable to connect to SQLite")
 }
 
 fn main() -> anyhow::Result<()> {
